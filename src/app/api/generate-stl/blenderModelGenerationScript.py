@@ -34,13 +34,20 @@ record_base_thickness = 2
 
 origin_offset = (0.0, 0.0, 0.0)
 boomboxOffset = (0.0, 89.9921, 42.616)  
-recordOffset = (0.0, 0.0, 42.616)  
+recordOffset = (41, 50, 8.2521)  
 
+flip_x = False
+flip_y = False
 
+target_width = 100
+target_length = 100
+target_height = 20
+
+radius = 3.0  # inner record radius
+circle_name = "DonutPath"
 
 # --- Choose which model to import ---
-# Options: "record", "boombox", "none"
-model_choice = "none"   # <-- change this to "boombox" or "none"
+model_choice = "boombox"   ## <-- Options: "record", "boombox", "none"
 
 # --- File paths ---
 record_player_path = r"D:/453 project/Record_player_model_no_spectrogram.stl"
@@ -152,10 +159,20 @@ def import_stl(filepath, object_name):
 if model_choice == "record":
     obj = import_stl(record_player_path, "RecordPlayer")
     origin_offset = recordOffset
-    target_width = 30.7717
-    target_length = 89.9921
-    target_height = 20
+    target_width = 10
+    target_length = 30
+    target_height = 30
+    flip_y = False
+    flip_x = True
     base_thickness = record_base_thickness
+    if circle_name in bpy.data.objects:
+        circle = bpy.data.objects[circle_name]
+    else:
+        bpy.ops.curve.primitive_bezier_circle_add(radius=radius, location=(50, 50, 13.1182))
+        circle = bpy.context.active_object
+        circle.name = circle_name
+        # Ensure circle has correct radius
+        circle.scale = (radius, radius, radius)
     print("Imported Record Player model at origin")
 elif model_choice == "boombox":
     obj = import_stl(boombox_path, "Boombox")
@@ -164,13 +181,15 @@ elif model_choice == "boombox":
     target_length = 89.9921
     target_height = 20
     base_thickness = boombox_base_thickness
+    flip_y = True    
     print("Imported Boombox model at origin")
 elif model_choice == "none":
     print("No model imported")
     origin_offset = (0,100,0) 
-    target_width = 30.0
+    target_width = 50.0
     target_length = 100.0
     target_height = 30.0
+    flip_y = True
 else:
     print(f"Unknown option: {model_choice}")
 
@@ -216,6 +235,31 @@ obj.location.x += trans_x
 obj.location.y += trans_y
 obj.location.z += trans_z
 
+
 mesh = obj.data
-for v in mesh.vertices:
-    v.co.y *= -1  # flip Y
+
+if flip_x:
+    for v in mesh.vertices:
+        v.co.x *= -1  # flip X
+if flip_y:
+    for v in mesh.vertices:
+        v.co.y *= -1  # flip Y
+
+
+if model_choice == "record":
+    
+    bbox = [obj.matrix_world @ v.co for v in obj.data.vertices]
+    xmin = min(v.y for v in bbox)
+    xmax = max(v.y for v in bbox)
+    obj_length = xmax - xmin
+    
+    # Scale object to match circle circumference
+    circumference = 2 * math.pi * 9   # ~18.85
+    scale_factor = circumference / 10   # ~1.885
+    obj.scale[0] *= scale_factor
+
+
+    # Add curve modifier
+    mod = obj.modifiers.new(name="DonutWarp", type='CURVE')
+    mod.object = circle
+    mod.deform_axis = 'POS_X'  # Change if your object is oriented differently
