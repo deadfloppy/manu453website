@@ -3,104 +3,127 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from scipy import interpolate, ndimage
-
-# Parameters
-file_name = "humpback_whale_sounds.wav"
-hop_length = 8192
-n_fft = 1024
-n_mels = 64
-db_min_threshold = -80.0  # -80 dB is min
-db_max_threshold = 0.0  # 0 dB is max
-
-# Cleanup parameters
-do_interpolation = True       # Fill missing values
-do_smoothing = True           # Apply Gaussian smoothing
-smooth_sigma = (1.0, 1.5)     # (mel, time) smoothing strength
-clamp_to_base = True          # Clamp quiet values to base plane
-base_plane = db_min_threshold  # Where to clamp quiet amplitudes
+from scipy import ndimage
 
 
-def main(plot_surface=True, convert_frames_to_seconds=True):
-    # Load audio
-    y, sr = librosa.load(file_name, sr=None)
+class mel_spectrogram:
+    def __init__(
+        self,
+        file_name,
+        hop_length=8192,
+        n_fft=1024,
+        n_mels=128,
+        db_min_threshold=-80.0,
+        db_max_threshold=0.0,
+        do_smoothing=True,
+        smooth_sigma=(1.0, 1.5),
+        clamp_to_base=True,
+        base_plane=-80.0,
+    ):
+        self.file_name = file_name
+        self.hop_length = hop_length
+        self.n_fft = n_fft
+        self.n_mels = n_mels
+        self.db_min_threshold = db_min_threshold
+        self.db_max_threshold = db_max_threshold
+        self.do_smoothing = do_smoothing
+        self.smooth_sigma = smooth_sigma
+        self.clamp_to_base = clamp_to_base
+        self.base_plane = base_plane
 
-    # Compute Mel spectrogram
-    S = librosa.feature.melspectrogram(
-        y=y, sr=sr, n_fft=n_fft, hop_length=hop_length,
-        n_mels=n_mels, fmin=20, fmax=sr / 2
-    )
+        # Internal storage
+        self.sr = None
+        self.S_db = None
+        self.time_grid = None
+        self.mel_grid = None
+        self.Z = None
 
-    # Convert power to decibels
-    S_db = librosa.power_to_db(S, ref=np.max)
+    # ------------------- Processing steps ------------------- #
+    def load_audio(self):
+        y, self.sr = librosa.load(self.file_name, sr=None)
+        return y
 
-    # Mask amplitudes within thresholds
-    if db_max_threshold is None:
-        mask = S_db > db_min_threshold
-    else:
-        mask = (S_db > db_min_threshold) & (S_db < db_max_threshold)
+    def compute_mel_spectrogram(self, y):
+        S = librosa.feature.melspectrogram(
+            y=y, sr=self.sr, n_fft=self.n_fft,
+            hop_length=self.hop_length, n_mels=self.n_mels,
+            fmin=20, fmax=self.sr / 2
+        )
+        self.S_db = librosa.power_to_db(S, ref=np.max)
+        return self.S_db
 
-    mel_idx, time_idx = np.where(mask)
-    amps = S_db[mel_idx, time_idx]
+    def build_grid(self, convert_frames_to_seconds=True):
+        n_frames = self.S_db.shape[-1]
+        frame_grid = np.arange(n_frames)
 
-    # Optionally convert frame indices to seconds
-    if convert_frames_to_seconds:
-        times = librosa.frames_to_time(time_idx, sr=sr, hop_length=hop_length)
-    else:
-        times = time_idx.astype(float)
+        if convert_frames_to_seconds:
+            self.time_grid = librosa.frames_to_time(
+                frame_grid, sr=self.sr, hop_length=self.hop_length
+            )
+        else:
+            self.time_grid = frame_grid.astype(float)
 
-    # Save raw point cloud to CSV
-    df_raw = pd.DataFrame(
-        {"time": times, "mel_bin": mel_idx, "amplitude": amps})
-    df_raw.to_csv("mel_spectrogram_points_raw.csv", index=False, header=True)
+        self.mel_grid = np.arange(self.S_db.shape[0])
+        T, M = np.meshgrid(self.time_grid, self.mel_grid)
+        return T, M
 
-    # Build full grid for cleanup
-    n_frames = S_db.shape[-1]
-    frame_grid = np.arange(n_frames)
-    if convert_frames_to_seconds:
-        time_grid = librosa.frames_to_time(
-            frame_grid, sr=sr, hop_length=hop_length)
-    else:
-        time_grid = frame_grid.astype(float)
-    mel_grid = np.arange(S_db.shape[0])
-    T, M = np.meshgrid(time_grid, mel_grid)
+    def clean_surface(self, T, M):
+        Z = np.copy(self.S_db)
 
-    # Copy full spectrogram
-    Z = np.copy(S_db)
+        # Thresholding
+        if self.clamp_to_base:
+            Z[Z < self.base_plane] = self.base_plane
+        else:
+            Z[Z <= self.db_min_threshold] = np.nan
 
-    # Clamp values to base plane instead of dropping them
-    if clamp_to_base:
-        Z[Z < base_plane] = base_plane
-    else:
-        Z[Z <= db_min_threshold] = np.nan  # keep NaNs if not clamping
+        # Gaussian smoothing
+        if self.do_smoothing:
+            Z = ndimage.gaussian_filter(Z, sigma=self.smooth_sigma)
 
-    # --- Gaussian smoothing across both axes ---
-    if do_smoothing:
-        Z = ndimage.gaussian_filter(Z, sigma=smooth_sigma)
+        self.Z = Z
+        return Z
 
-    # Save cleaned surface to CSV
-    df_clean = pd.DataFrame({
-        "time": T.flatten(),
-        "mel_bin": M.flatten(),
-        "amplitude": Z.flatten()
-    })
-    df_clean.to_csv("mel_spectrogram_points_clean.csv",
-                    index=False, header=True)
+    # ------------------- Output utilities ------------------- #
+    def save_to_csv(self, T, M, output_file="mel_spectrogram_points.csv"):
+        df = pd.DataFrame({
+            "time": T.flatten(),
+            "mel_bin": M.flatten(),
+            "amplitude": self.Z.flatten()
+        })
+        df.to_csv(output_file, index=False, header=True)
 
-    # Plot 3D surface
-    if plot_surface:
+    def plot_surface(self, T, M, title="Mel Spectrogram 3D Surface"):
         fig = plt.figure(figsize=(10, 6))
         ax = fig.add_subplot(111, projection="3d")
-        surf = ax.plot_surface(T, M, Z, cmap="viridis",
-                               linewidth=0, antialiased=True)
-        ax.set_xlabel("Time (s)" if convert_frames_to_seconds else "Frame")
+        surf = ax.plot_surface(
+            T, M, self.Z, cmap="viridis",
+            linewidth=0, antialiased=True
+        )
+        ax.set_xlabel("Time (s)")
         ax.set_ylabel("Mel bin")
         ax.set_zlabel("Amplitude (dB)")
         fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10, label="dB")
-        plt.title("Cleaned Mel Spectrogram Surface (Gaussian Smoothed)")
+        plt.title(title)
         plt.tight_layout()
         plt.show()
 
 
+# ------------------- Usage ------------------- #
+def main():
+    spectro = mel_spectrogram(
+        file_name="Let_it_be.wav",
+        smooth_sigma=(1.0, 1.5),
+        base_plane=-80.0,
+    )
+
+    y = spectro.load_audio()
+    spectro.compute_mel_spectrogram(y)
+    T, M = spectro.build_grid(convert_frames_to_seconds=True)
+    spectro.clean_surface(T, M)
+
+    spectro.save_to_csv(T, M, output_file="mel_spectrogram_points_clean.csv")
+    spectro.plot_surface(T, M, title="Cleaned & Smoothed Mel Spectrogram")
+
+
 if __name__ == "__main__":
-    main(plot_surface=True, convert_frames_to_seconds=True)
+    main()
