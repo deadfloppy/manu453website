@@ -20,6 +20,9 @@ To be implemented
 import bpy
 import csv
 import math
+import os
+
+
 
 # === SETTINGS ===
 csv_file = "D:\downloads\mel_spectrogram_points_clean.csv"  
@@ -33,11 +36,13 @@ boombox_base_thickness = 0
 record_base_thickness = 2
 
 origin_offset = (0.0, 0.0, 0.0)
-boomboxOffset = (0.0, 89.9921, 42.616)  
+#boomboxOffset = (7.0527, 89.9921, 42.616)  
+boomboxOffset = (3.16276, 86.8293, 42.616-5)  
 recordOffset = (41, 50, 8.2521)  
 
 flip_x = False
 flip_y = False
+flip_z = False
 
 target_width = 100
 target_length = 100
@@ -51,7 +56,7 @@ model_choice = "boombox"   ## <-- Options: "record", "boombox", "none"
 
 # --- File paths ---
 record_player_path = r"D:/453 project/Record_player_model_no_spectrogram.stl"
-boombox_path       = r"D:/453 project/Boombox_model_no_spectrogram.stl"
+boombox_path       = r"D:/453 project/Boombox_model_no_spectrogramver2.stl"
 
 
 def import_grid_surface_solid(csv_file, delimiter, skip_header, num_cols, base_thickness):
@@ -76,10 +81,7 @@ def import_grid_surface_solid(csv_file, delimiter, skip_header, num_cols, base_t
     #normalize origin
     x0, y0, z0 = points[0] # defines the position of the first point aka the offset from 0,0,0
 
-
     points = [(x - x0, y - y0, z - bottom_z) for (x, y, z) in points] #subtracts the offset from each data point to shift it to the origin
-
-    bottom_z = (min(p[2] for p in points) - base_thickness) #finds the lowest z value to define as the bottom of the volume
 
     num_rows = len(points) // num_cols
 
@@ -177,11 +179,14 @@ if model_choice == "record":
 elif model_choice == "boombox":
     obj = import_stl(boombox_path, "Boombox")
     origin_offset = boomboxOffset  
-    target_width = 30.7717
-    target_length = 89.9921
-    target_height = 20
+    target_width = 24.44628
+    target_length = 83.66658
+    target_height = 35
+    #target_length = 89.9921
+    #target_width = 30.***
     base_thickness = boombox_base_thickness
     flip_y = True    
+    flip_z = True   
     print("Imported Boombox model at origin")
 elif model_choice == "none":
     print("No model imported")
@@ -244,6 +249,9 @@ if flip_x:
 if flip_y:
     for v in mesh.vertices:
         v.co.y *= -1  # flip Y
+if flip_z:
+    for v in mesh.vertices:
+        v.co.z *= -1  # flip Z
 
 
 if model_choice == "record":
@@ -263,3 +271,91 @@ if model_choice == "record":
     mod = obj.modifiers.new(name="DonutWarp", type='CURVE')
     mod.object = circle
     mod.deform_axis = 'POS_X'  # Change if your object is oriented differently
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.modifier_apply(modifier=mod.name)
+
+if model_choice == "boombox": #boolean subtract
+    
+    
+    bpy.ops.mesh.primitive_cube_add(size=2, location=(3.16276+24.4463/2, 86.8293-83.6666/2, 42.616-5/2)); bpy.context.active_object.scale=(28/2, 88/2, 5/2)
+
+    bpy.ops.mesh.primitive_cube_add(size=2, location=(15.3885+5, 44.9837, 42.616-1)); bpy.context.active_object.scale=(5/2, 70/2, 5/2)
+    bpy.ops.mesh.primitive_cube_add(size=2, location=(15.3885-5, 44.9837, 42.616-1)); bpy.context.active_object.scale=(5/2, 70/2, 5/2)
+
+    bpy.context.view_layer.objects.active = bpy.data.objects["Cube.001"]; [bpy.data.objects[n].select_set(True) for n in ("Cube.001","Cube.002")]; bpy.ops.object.join()
+
+    
+    cube = bpy.data.objects["Cube"]
+    surface = bpy.data.objects["SolidSurface"]
+
+    # Make SolidSurface the base
+    bpy.context.view_layer.objects.active = surface
+    cube.select_set(True)
+    surface.select_set(True)
+
+    # Add a union boolean on SolidSurface
+    bool_mod = surface.modifiers.new("Union", "BOOLEAN")
+    bool_mod.operation = 'UNION'
+    bool_mod.object = cube
+
+    # Apply the union
+    bpy.ops.object.modifier_apply(modifier=bool_mod.name)
+        
+    bpy.data.objects.remove(cube, do_unlink=True)
+
+    main_obj = bpy.data.objects["Boombox"]   # replace with your main object name
+
+    # Select the tool object (the cutter)
+    tool_obj = bpy.data.objects["SolidSurface"] # replace with your cutter object name
+   
+    # Add a boolean modifier to the main object
+    bool_mod = main_obj.modifiers.new(name="Boolean_Cut", type='BOOLEAN')
+    bool_mod.object = tool_obj
+    bool_mod.operation = 'DIFFERENCE'
+
+    # Apply the modifier so the cut is permanent
+    bpy.context.view_layer.objects.active = main_obj
+    bpy.ops.object.modifier_apply(modifier=bool_mod.name)
+    
+    main_obj = bpy.data.objects["SolidSurface"]   # base mesh
+    tool_obj = bpy.data.objects["Cube.001"]       # cutter
+
+    bool_mod = main_obj.modifiers.new(name="Boolean_Subtract_Cube", type='BOOLEAN')
+    bool_mod.operation = 'DIFFERENCE'
+    bool_mod.object = tool_obj
+
+    bpy.context.view_layer.objects.active = main_obj
+    bpy.ops.object.modifier_apply(modifier=bool_mod.name)
+        
+    bpy.data.objects.remove(tool_obj, do_unlink=True)
+
+    bpy.ops.object.select_all(action='DESELECT')
+
+"""
+# Select all mesh objects
+for obj in bpy.context.scene.objects:
+    if obj.type == 'MESH':
+        obj.select_set(True)
+
+# Make the active object the first selected one
+bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
+
+# Join selected objects into one
+bpy.ops.object.join()
+
+"""
+
+base_path = "D:/453 project/mesh"
+ext = ".stl"
+
+counter = 1
+while True:
+    filepath = f"{base_path}_{counter}{ext}"
+    if not os.path.exists(filepath):
+        break
+    counter += 1
+
+# Export STL with unique name
+bpy.ops.wm.stl_export(filepath=filepath, check_existing=True)
+bpy.ops.wm.stl_export(filepath='D:/453 project/mesh.stl', check_existing=True)
