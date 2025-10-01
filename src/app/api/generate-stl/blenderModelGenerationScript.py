@@ -81,7 +81,10 @@ def import_grid_surface_solid(csv_file, delimiter, skip_header, num_cols, base_t
     #normalize origin
     x0, y0, z0 = points[0] # defines the position of the first point aka the offset from 0,0,0
 
+
     points = [(x - x0, y - y0, z - bottom_z) for (x, y, z) in points] #subtracts the offset from each data point to shift it to the origin
+
+    bottom_z = (min(p[2] for p in points) - base_thickness) #finds the lowest z value to define as the bottom of the volume
 
     num_rows = len(points) // num_cols
 
@@ -329,7 +332,6 @@ if model_choice == "boombox": #boolean subtract
     bpy.ops.object.modifier_apply(modifier=bool_mod.name)
         
     bpy.data.objects.remove(tool_obj, do_unlink=True)
-
     bpy.ops.object.select_all(action='DESELECT')
 
 """
