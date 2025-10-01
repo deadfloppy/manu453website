@@ -10,6 +10,10 @@ import  Link  from "next/link"
 import STLViewer from "@/components/stlviewer";
 import Image from "next/image";
 
+const isIOS = () => {
+  if (typeof navigator === "undefined") return false;
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
 
 export default function SpectogramVisualizer(): TSX.Element {
     const router = useRouter();
@@ -35,13 +39,24 @@ export default function SpectogramVisualizer(): TSX.Element {
 
         <STLViewer url="/3DBenchy.stl"></STLViewer>
         
-        <Button asChild
+           {/* Conditional AR button */}
+           {isIOS() ? (
+            <a
+              rel="ar"
+              href= "/Benchy.usdz"
+            >
+              <Button className="w-full bg-white text-black hover:bg-gray-200 mt-6">
+                View in AR (iPhone)
+              </Button>
+            </a>
+          ) : (
+            <Button asChild
             className="w-full bg-white text-black hover:bg-gray-200 mt-6">
               <Link href="intent://arvr.google.com/scene-viewer/1.0?file=https://github.com/deadfloppy/manu453website/raw/refs/heads/main/3DBenchy.glb&mode=ar_only#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end;">View in AR</Link>
           </Button>
+          )}       
         </motion.div>
    </div>
-   
-      </div>
+  </div>
   );
 }
