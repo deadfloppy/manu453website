@@ -25,12 +25,12 @@ import os
 
 
 # === SETTINGS ===
-csv_file = "D:\downloads\mel_spectrogram_points_clean.csv"  
+csv_file = "D:/453 project/mel_spectrogram_points_clean.csv"  
 delimiter = ","
 skip_header = False
 mesh_name = "SolidSurface"
 
-num_cols = 70
+
 base_thickness = 5
 boombox_base_thickness = 0
 record_base_thickness = 2
@@ -52,12 +52,35 @@ radius = 3.0  # inner record radius
 circle_name = "DonutPath"
 
 # --- Choose which model to import ---
-model_choice = "boombox"   ## <-- Options: "record", "boombox", "none"
+model_choice = "none"   ## <-- Options: "record", "boombox", "none"
 
 # --- File paths ---
 record_player_path = r"D:/453 project/Record_player_model_no_spectrogram.stl"
 boombox_path       = r"D:/453 project/Boombox_model_no_spectrogramver2.stl"
 
+
+def detect_num_cols(csv_file, delimiter, skip_header):
+    with open(csv_file, newline="") as f:
+        reader = csv.reader(f, delimiter=delimiter)
+        if skip_header:
+            next(reader, None)  # skip first line
+
+        first_val = None
+        count = 0
+        for row in reader:
+            if not row: 
+                continue
+            y = int(row[1])  # second column
+            if first_val is None:
+                first_val = y
+            if y == first_val:
+                count += 1
+            else:
+                break
+        return count
+    
+num_cols = detect_num_cols(csv_file, delimiter, skip_header)  
+print("Detected num_cols:", num_cols)
 
 def import_grid_surface_solid(csv_file, delimiter, skip_header, num_cols, base_thickness):
     points = []
@@ -159,8 +182,6 @@ def import_stl(filepath, object_name):
 
 ######### MAIN ############
 
-
-
 if model_choice == "record":
     obj = import_stl(record_player_path, "RecordPlayer")
     origin_offset = recordOffset
@@ -205,13 +226,9 @@ import_grid_surface_solid(csv_file, delimiter, skip_header, num_cols, base_thick
 
 obj = bpy.data.objects["SolidSurface"]
 
-
 xoffset, yoffset, zoffset = origin_offset
 
-
 coords = [obj.matrix_world @ v.co for v in obj.data.vertices]  # world-space vertices
-
-
 
 x_min = min(v.x for v in coords)
 x_max = max(v.x for v in coords)
