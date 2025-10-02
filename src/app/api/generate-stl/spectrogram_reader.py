@@ -1,131 +1,132 @@
 import librosa
 import numpy as np
 import pandas as pd
-from scipy.ndimage import gaussian_filter
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from scipy import ndimage
 
 
-class STFTMelAveraged:
-    def __init__(self, file_name, n_fft=2048, hop_length=4096,
-                 sigma_freq=1, sigma_time=1):
+class mel_spectrogram:
+    def __init__(
+        self,
+        file_name,
+        hop_length=4096,
+        n_fft=4096,
+        n_mels=441,
+        db_min_threshold=-80.0,
+        db_max_threshold=0.0,
+        do_smoothing=True,
+        smooth_sigma=(1.0, 1.5),
+        clamp_to_base=True,
+        base_plane=-80.0,
+    ):
         self.file_name = file_name
-        self.n_fft = n_fft
         self.hop_length = hop_length
-        self.sigma_freq = sigma_freq
-        self.sigma_time = sigma_time
+        self.n_fft = n_fft
+        self.n_mels = n_mels
+        self.db_min_threshold = db_min_threshold
+        self.db_max_threshold = db_max_threshold
+        self.do_smoothing = do_smoothing
+        self.smooth_sigma = smooth_sigma
+        self.clamp_to_base = clamp_to_base
+        self.base_plane = base_plane
 
-        # Internals
+        # Internal storage
         self.sr = None
-        self.times = None
-        self.freqs = None
         self.S_db = None
-        self.S_reduced = None
-        self.freqs_reduced = None
-        self.times_reduced = None
+        self.time_grid = None
+        self.mel_grid = None
+        self.Z = None
 
+    # ------------------- Processing steps ------------------- #
     def load_audio(self):
         y, self.sr = librosa.load(self.file_name, sr=None)
         return y
 
-    def compute_stft(self, y):
-        D = librosa.stft(y, n_fft=self.n_fft, hop_length=self.hop_length)
-        S = np.abs(D) ** 2
-        S_db = librosa.power_to_db(S, ref=np.max)
-        self.S_db = S_db
-        self.freqs = librosa.fft_frequencies(sr=self.sr, n_fft=self.n_fft)
-        self.times = librosa.frames_to_time(
-            np.arange(S.shape[1]), sr=self.sr, hop_length=self.hop_length
+    def compute_mel_spectrogram(self, y):
+        S = librosa.feature.melspectrogram(
+            y=y, sr=self.sr, n_fft=self.n_fft,
+            hop_length=self.hop_length, n_mels=self.n_mels,
+            fmin=20, fmax=self.sr / 2
         )
-        return S_db
+        self.S_db = librosa.power_to_db(S, ref=np.max)
+        return self.S_db
 
-    def average_matrix(self, max_time_bins=300):
-        freq_bins, time_bins = self.S_db.shape
+    def build_grid(self, convert_frames_to_seconds=True):
+        n_frames = self.S_db.shape[-1]
+        frame_grid = np.arange(n_frames)
 
-        if time_bins > max_time_bins:
-            # Downsample along time axis
-            time_edges = np.linspace(0, time_bins, max_time_bins + 1, dtype=int)
-            reduced = np.zeros((freq_bins, max_time_bins))
-
-            for j in range(max_time_bins):
-                time_slice = slice(time_edges[j], time_edges[j + 1])
-                reduced[:, j] = np.mean(self.S_db[:, time_slice], axis=1)
-
-            self.S_reduced = reduced
-            self.times_reduced = np.linspace(
-                self.times.min(), self.times.max(), max_time_bins
+        if convert_frames_to_seconds:
+            self.time_grid = librosa.frames_to_time(
+                frame_grid, sr=self.sr, hop_length=self.hop_length
             )
         else:
-            # Keep original resolution
-            self.S_reduced = self.S_db
-            self.times_reduced = self.times
+            self.time_grid = frame_grid.astype(float)
 
-        # Frequencies always stay the same
-        self.freqs_reduced = self.freqs
-        return self.S_reduced
+        self.mel_grid = np.arange(self.S_db.shape[0])
+        T, M = np.meshgrid(self.time_grid, self.mel_grid)
+        return T, M
 
-    def apply_gaussian_smoothing(self):
-        if self.S_reduced is not None:
-            # Apply 2D Gaussian smoothing with different sigmas
-            self.S_reduced = gaussian_filter(
-                self.S_reduced,
-                sigma=(self.sigma_freq, self.sigma_time)
-            )
-        return self.S_reduced
+    def clean_surface(self, T, M):
+        Z = np.copy(self.S_db)
 
-    def add_mel_column(self):
-        mel = 2595 * np.log10(1 + self.freqs_reduced / 700)
-        return mel
+        # New per-bin clamping
+        if self.clamp_to_base:
+            # For each mel bin, compute average amplitude
+            bin_means = np.nanmean(Z, axis=1)  # shape = (n_mels,)
+            for i in range(Z.shape[0]):        # loop over mel bins
+                Z[i, Z[i, :] < bin_means[i]] = bin_means[i]
+        else:
+            Z[Z <= self.db_min_threshold] = np.nan
 
-    def save_to_csv(self, output_file="averaged_spectrogram.csv"):
-        rows = []
-        mel = self.add_mel_column()
-        for i, f in enumerate(self.freqs_reduced):
-            for j, t in enumerate(self.times_reduced):
-                amp = self.S_reduced[i, j]
-                rows.append((t, mel[i], amp, f))
-        df = pd.DataFrame(rows, columns=["time", "mel", "amplitude", "frequency"])
-        df.to_csv(output_file, index=False)
-        print(f"CSV saved to {output_file}")
+        # Gaussian smoothing
+        if self.do_smoothing:
+            Z = ndimage.gaussian_filter(Z, sigma=self.smooth_sigma)
 
-    def plot_surface(self):
-        """Original 3D plot with frequency axis."""
-        T, F = np.meshgrid(self.times_reduced, self.freqs_reduced)
+        self.Z = Z
+        return Z
+
+
+    # ------------------- Output utilities ------------------- #
+    def save_to_csv(self, T, M, output_file="mel_spectrogram_points.csv"):
+        df = pd.DataFrame({
+            "time": T.flatten(),
+            "mel_bin": M.flatten(),
+            "amplitude": self.Z.flatten()
+        })
+        df.to_csv(output_file, index=False, header=True)
+
+    def plot_surface(self, T, M, title="Mel Spectrogram 3D Surface"):
         fig = plt.figure(figsize=(10, 6))
         ax = fig.add_subplot(111, projection="3d")
-        surf = ax.plot_surface(T, F, self.S_reduced, cmap="viridis")
+        surf = ax.plot_surface(
+            T, M, self.Z, cmap="viridis",
+            linewidth=0, antialiased=True
+        )
         ax.set_xlabel("Time (s)")
-        ax.set_ylabel("Frequency (Hz)")
+        ax.set_ylabel("Mel bin")
         ax.set_zlabel("Amplitude (dB)")
-        fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10)
-        plt.show()
-
-    def plot_surface_mel(self):
-        """New 3D plot with mel bins instead of frequency."""
-        mel = self.add_mel_column()
-        T, M = np.meshgrid(self.times_reduced, mel)
-        fig = plt.figure(figsize=(10, 6))
-        ax = fig.add_subplot(111, projection="3d")
-        surf = ax.plot_surface(T, M, self.S_reduced, cmap="plasma")
-        ax.set_xlabel("Time (s)")
-        ax.set_ylabel("Mel scale")
-        ax.set_zlabel("Amplitude (dB)")
-        fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10)
+        fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10, label="dB")
+        plt.title(title)
+        plt.tight_layout()
         plt.show()
 
 
+# ------------------- Usage ------------------- #
 def main():
-    spectro = STFTMelAveraged(
+    spectro = mel_spectrogram(
         file_name="Let_it_be.wav",
-        sigma_freq=3,
-        sigma_time=4
+        smooth_sigma=(4.0, 2.0),
+        base_plane=-80.0,
     )
+
     y = spectro.load_audio()
-    spectro.compute_stft(y)
-    spectro.average_matrix()
-    spectro.apply_gaussian_smoothing()
-    spectro.save_to_csv("let_it_be_averaged.csv")
-    # spectro.plot_surface_mel()  # <-- use mel-bin 3D plot
-    # spectro.plot_surface()
+    spectro.compute_mel_spectrogram(y)
+    T, M = spectro.build_grid(convert_frames_to_seconds=True)
+    spectro.clean_surface(T, M)
+
+    spectro.save_to_csv(T, M, output_file = "Let_it_be_441_data")
+    spectro.plot_surface(T, M, "Bins = 441")
 
 
 if __name__ == "__main__":
