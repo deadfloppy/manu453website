@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy import ndimage
+from datetime import date
 
 
 class mel_spectrogram:
@@ -20,6 +21,15 @@ class mel_spectrogram:
         clamp_to_base=True,
         base_plane=-80.0,
     ):
+        self.bands = [
+            (0, 150, 1),
+            (150, 400, 2),
+            (400, 1000, 3),
+            (1000, 2400, 4),
+            (2400, 22050, 5),
+        ]
+        self.bin_width = 22050//n_mels
+
         self.file_name = file_name
         self.hop_length = hop_length
         self.n_fft = n_fft
@@ -37,6 +47,7 @@ class mel_spectrogram:
         self.time_grid = None
         self.mel_grid = None
         self.Z = None
+        return
 
     # ------------------- Processing steps ------------------- #
     def load_audio(self):
@@ -70,7 +81,7 @@ class mel_spectrogram:
     def clean_surface(self, T, M):
         Z = np.copy(self.S_db)
 
-        # New per-bin clamping
+        # Per-bin clamping
         if self.clamp_to_base:
             # For each mel bin, compute average amplitude
             bin_means = np.nanmean(Z, axis=1)  # shape = (n_mels,)
@@ -85,14 +96,26 @@ class mel_spectrogram:
 
         self.Z = Z
         return Z
+    
+    def band_labeling(self, M):
+        B = M.copy()
+        for index, value in np.ndenumerate(B):
 
+            frequency = (value+1) * self.bin_width
+
+            for i, (low, high, label) in enumerate(self.bands):
+
+                if low < frequency <= high:
+                    B[index] = label    
+        return B
 
     # ------------------- Output utilities ------------------- #
-    def save_to_csv(self, T, M, output_file="mel_spectrogram_points.csv"):
+    def save_to_csv(self, T, M, B, output_file):
         df = pd.DataFrame({
             "time": T.flatten(),
             "mel_bin": M.flatten(),
-            "amplitude": self.Z.flatten()
+            "amplitude": self.Z.flatten(),
+            "bands": B.flatten()
         })
         df.to_csv(output_file, index=False, header=True)
 
@@ -114,6 +137,9 @@ class mel_spectrogram:
 
 # ------------------- Usage ------------------- #
 def main():
+
+    today = date.today()
+
     spectro = mel_spectrogram(
         file_name="Let_it_be.wav",
         smooth_sigma=(4.0, 2.0),
@@ -124,8 +150,9 @@ def main():
     spectro.compute_mel_spectrogram(y)
     T, M = spectro.build_grid(convert_frames_to_seconds=True)
     spectro.clean_surface(T, M)
+    B = spectro.band_labeling(M)
 
-    spectro.save_to_csv(T, M, output_file = "Let_it_be_441_data")
+    spectro.save_to_csv(T, M, B, output_file = f"{today}_Let_it_be_441_data.csv")
     spectro.plot_surface(T, M, "Bins = 441")
 
 
