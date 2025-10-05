@@ -16,7 +16,7 @@ export default function SpectogramVisualizer(): TSX.Element {
 
     const handleYTUpload = () => {
       if (!yturl.trim()) return; // if no URL
-      router.push(`/viz?yt=${encodeURIComponent(yturl)}`);
+      router.push(`/proc?yt=${encodeURIComponent(yturl)}`);
     }
 
   return (

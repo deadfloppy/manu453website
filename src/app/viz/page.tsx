@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,11 +15,9 @@ export default function SpectogramVisualizer(): TSX.Element {
     const router = useRouter();
 
     const [yturl, setYTURL] = useState<string>("");
+    const searchParams = useSearchParams();
+    const filepath = searchParams?.get("pt") || "";
 
-    const handleYTUpload = () => {
-      if (!yturl.trim()) return; // if no URL
-      router.push(`/viz?yt=${encodeURIComponent(yturl)}`);
-    }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 to-orange-800">
@@ -33,7 +31,7 @@ export default function SpectogramVisualizer(): TSX.Element {
           >
         <p className="text-center font-bold mv-6 text-gray-300">Viz page</p>
 
-        <STLViewer url="/3DBenchy.stl"></STLViewer>
+        <STLViewer url={`${filepath}`}></STLViewer>
         
         <Button asChild
             className="w-full bg-white text-black hover:bg-gray-200 mt-6">

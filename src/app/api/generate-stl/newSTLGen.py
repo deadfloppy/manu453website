@@ -1,36 +1,13 @@
-"""
-
-To be implemented
-- size mapping, is dependant on how we choose to do the data processing, should map the overall x y and z size to present sizes by multiplying the data in each axis by a factor
-- generating musical themed accessory and placing the spectrogram on to it
-    - warping the spectrogram as required
-        - ex. into a circle for a record 
-- decimation / subdivision based on printing specs
-- QOL / Polishing features
-    - a textured base
-    - a base with the audio file name engraved
-    - bevel the base
-- any other data parsed by the group
-- display the key of the song
-- show the beat
-- 
-
-"""
-
 import bpy
 import csv
 import math
 import os
-import sys
-
-jobId = sys.argv[5]
-
+from sys import argv
 
 # === SETTINGS ===
-csv_file = f"/Users/deadfloppy/Projects/AdditiveWebsite/with-docker/tmp/{jobId}/{jobId}.csv"  
-print(csv_file)
+csv_file = f"/Users/deadfloppy/Projects/AdditiveWebsite/with-docker/tmp/{argv[5]}/{argv[5]}.csv"  
 delimiter = ","
-skip_header = True
+skip_header = False
 mesh_name = "SolidSurface"
 
 
@@ -73,8 +50,7 @@ def detect_num_cols(csv_file, delimiter, skip_header):
         for row in reader:
             if not row: 
                 continue
-            print(row)
-            y = int(float(row[1]))  # second column
+            y = int(row[1])  # second column
             if first_val is None:
                 first_val = y
             if y == first_val:
@@ -154,7 +130,7 @@ def import_grid_surface_solid(csv_file, delimiter, skip_header, num_cols, base_t
         bot1 = base_start + top1
         bot2 = base_start + top2
         faces.append((bot1, bot2, top2, top1))
-   
+
     for c in range(num_cols - 1):
         # front edge
         top1 = c # much simpler, just inrement across the row for the corners
@@ -176,7 +152,7 @@ def import_grid_surface_solid(csv_file, delimiter, skip_header, num_cols, base_t
     mesh.from_pydata(verts, [], faces) # adds the created geometry to the mesh, verts and faces, edges are redundant
     mesh.update() # updates changes
     
-  
+
 def import_stl(filepath, object_name):
     bpy.ops.wm.stl_import(filepath=filepath)
     obj = bpy.context.selected_objects[0]
@@ -332,7 +308,7 @@ if model_choice == "boombox": #boolean subtract
 
     # Select the tool object (the cutter)
     tool_obj = bpy.data.objects["SolidSurface"] # replace with your cutter object name
-   
+
     # Add a boolean modifier to the main object
     bool_mod = main_obj.modifiers.new(name="Boolean_Cut", type='BOOLEAN')
     bool_mod.object = tool_obj
@@ -368,7 +344,8 @@ bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
 bpy.ops.object.join()
 
 """
-base_path = f"/Users/deadfloppy/Projects/AdditiveWebsite/with-docker/tmp/{jobId}"
+
+base_path = f"tmp/{argv[5]}"
 ext = ".stl"
 
 counter = 1
@@ -379,5 +356,5 @@ while True:
     counter += 1
 
 # Export STL with unique name
-# bpy.ops.wm.stl_export(filepath=filepath, check_existing=True)
-bpy.ops.wm.stl_export(filepath=f'/Users/deadfloppy/Projects/AdditiveWebsite/with-docker/public/models/{jobId}.stl', check_existing=True)
+bpy.ops.wm.stl_export(filepath=filepath, check_existing=True)
+bpy.ops.wm.stl_export(filepath=f'tmp/{argv[5]}/{argv[5]}.stl', check_existing=True)
