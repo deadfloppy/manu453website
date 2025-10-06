@@ -66,7 +66,8 @@ export async function POST(req: NextRequest) {
     // Run Python script: assume it takes input wav, outputs STL+USDZ to tmpDir
     await new Promise<void>((resolve, reject) => {
       //const proc = spawn("python3", ["scripts/generate_model.py", jobId]);
-      const proc = spawn("python3", ["./src/app/api/generate-stl/backend.py", jobId]);
+      const pythonCommand = process.platform === "win32" ? "python" : "python3";
+      const proc = spawn(pythonCommand, ["./src/app/api/generate-stl/backend.py", jobId]);
 
       proc.stdout.on("data", d => console.log("[python]", d.toString()));
       proc.stderr.on("data", d => console.error("[python-err]", d.toString()));

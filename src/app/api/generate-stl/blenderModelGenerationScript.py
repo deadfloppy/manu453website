@@ -27,7 +27,7 @@ jobId = sys.argv[5]
 
 
 # === SETTINGS ===
-csv_file = f"/Users/deadfloppy/Projects/AdditiveWebsite/with-docker/tmp/{jobId}/{jobId}.csv"  
+csv_file = os.path.join(os.getcwd(), "tmp", jobId, f"{jobId}.csv")
 print(csv_file)
 delimiter = ","
 skip_header = True
@@ -368,7 +368,7 @@ bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
 bpy.ops.object.join()
 
 """
-base_path = f"/Users/deadfloppy/Projects/AdditiveWebsite/with-docker/tmp/{jobId}"
+base_path = os.path.join(os.getcwd(), "tmp", jobId)
 ext = ".stl"
 
 counter = 1
@@ -380,4 +380,5 @@ while True:
 
 # Export STL with unique name
 # bpy.ops.wm.stl_export(filepath=filepath, check_existing=True)
-bpy.ops.wm.stl_export(filepath=f'/Users/deadfloppy/Projects/AdditiveWebsite/with-docker/public/models/{jobId}.stl', check_existing=True)
+output_path = os.path.join(os.getcwd(), "public", "models", f"{jobId}.stl")
+bpy.ops.wm.stl_export(filepath=output_path, check_existing=True)

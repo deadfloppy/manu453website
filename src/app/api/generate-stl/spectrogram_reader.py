@@ -9,8 +9,7 @@ from sys import argv
 class STFTMelAveraged:
     def __init__(self, file_name, n_fft=2048, hop_length=4096,
                  sigma_freq=1, sigma_time=1):
-        self.jobId = file_name
-        self.file_name = f"/Users/deadfloppy/Projects/AdditiveWebsite/with-docker/tmp/{self.jobId}/{self.jobId}.wav"
+        self.file_name = file_name
         self.n_fft = n_fft
         self.hop_length = hop_length
         self.sigma_freq = sigma_freq

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
 import Image from "next/image";
+import { Slider } from "@/components/ui/slider";
 
 export default function LinkProcessor(): JSX.Element {
   const router = useRouter();
@@ -106,10 +107,20 @@ export default function LinkProcessor(): JSX.Element {
 
               <div className="mt-4">
                 <label className="text-sm text-gray-300">Start time (seconds) — max 15s segment</label>
-                <div className="flex gap-2 mt-2 items-center">
-                  <Input type="number" value={startSeconds} onChange={(e: any) => setStartSeconds(Number(e.target.value))} min={0} max={Math.max(0, (durationSeconds || 0) - 1)} />
-                  <div className="text-sm">{toMMSS(startSeconds)} → {toMMSS(Math.min((startSeconds || 0) + 15, durationSeconds || 0))}</div>
-                </div>
+                  <div className="mt-4">
+                    <Slider
+                      value={[startSeconds]}
+                      onValueChange={(value) => setStartSeconds(value[0])}
+                      min={0}
+                      max={Math.max(0, (durationSeconds || 0) - 15)}
+                      step={1}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-sm text-gray-400 mt-2">
+                      <span>{toMMSS(startSeconds)}</span>
+                      <span>{toMMSS(Math.min((startSeconds || 0) + 15, durationSeconds || 0))}</span>
+                    </div>
+                  </div>
                 <p className="text-xs text-gray-400 mt-2">If you enter a start time near the end of the video, the component will clamp the segment to a 15s window or less.</p>
 
                 <div className="mt-6">
