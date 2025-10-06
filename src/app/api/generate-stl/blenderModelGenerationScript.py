@@ -3,6 +3,10 @@ import csv
 import math
 import os
 from collections import defaultdict
+# clear scene
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
 
 # === SETTINGS ===
 csv_file = "D:/453 project/let_it_be_441_bins_data.csv"
@@ -43,7 +47,7 @@ radius = 3.0
 circle_name = "DonutPath"
 
 # --- Model choice ---
-model_choice = "boombox"  # "record", "boombox", "none"
+model_choice = "record"  # "record", "boombox", "none"
 record_player_path = r"D:/453 project/Record_player_model_no_spectrogram.stl"
 boombox_path       = r"D:/453 project/Boombox_model_no_spectrogramver2.stl"
 
@@ -648,13 +652,32 @@ def get_next_batch_number(pattern):
 
 # --- EXPORT STL ---
 if SHOW_BANDS:
-    # Export 5 band meshes
-    for band_num in range(1, 6):
-        pattern = os.path.join(base_path, f"Bin_{band_num}_Batch_{{}}{ext}")
+    # Names of the meshes in Blender
+    mesh_names = [f"Mesh_{i}" for i in range(1, 6)]
+
+    for i, name in enumerate(mesh_names, start=1):
+        obj = bpy.data.objects.get(name)
+        if obj is None:
+            print(f"[WARNING] Object '{name}' not found — skipping.")
+            continue
+
+        # Hide all other objects except this one
+        for o in bpy.data.objects:
+            o.hide_set(True)
+        obj.hide_set(False)
+
+        # Build custom export filename (EQ_Band_i_Batch_j.stl)
+        pattern = os.path.join(base_path, f"EQ_Band_{i}_Batch_{{}}{ext}")
         batch = get_next_batch_number(pattern)
         filepath = pattern.format(batch)
-        # Here you would select/activate the specific band mesh if needed
+
+        # Export currently visible mesh
         bpy.ops.wm.stl_export(filepath=filepath, check_existing=True)
+        print(f"[EXPORT] Exported {name} as {os.path.basename(filepath)}")
+
+    # Restore visibility after exporting all meshes
+    for o in bpy.data.objects:
+        o.hide_set(False)
 
 elif not SHOW_BANDS:
     if model_choice == "record":
@@ -667,19 +690,36 @@ elif not SHOW_BANDS:
         bpy.ops.wm.stl_export(filepath=filepath, check_existing=True)
 
     elif model_choice == "boombox":
-        # Assuming two meshes named "Boombox_part_1" and "Boombox_part_2"
-        mesh_objs = [obj for obj in bpy.data.objects if obj.type == 'MESH']
-    
-        # Take the first two meshes
-        for part_num, obj in enumerate(mesh_objs[:2], start=1):
-            pattern = os.path.join(base_path, f"Boombox_{part_num}_Batch_{{}}{ext}")
-            batch = get_next_batch_number(pattern)
-            filepath = pattern.format(batch)
-            bpy.ops.object.select_all(action='DESELECT')
-            obj.select_set(True)
-            bpy.context.view_layer.objects.active = obj
-            bpy.ops.wm.stl_export(filepath=filepath, check_existing=True)
+        # === Export Boombox ===
+        bpy.ops.object.select_all(action='DESELECT')
+        for obj in bpy.data.objects:
+            obj.hide_set(True)
+        bpy.data.objects['Boombox'].hide_set(False)
 
+        pattern = os.path.join(base_path, f"Boombox_1_Batch_{{}}{ext}")
+        batch = get_next_batch_number(pattern)
+        filepath = pattern.format(batch)
+
+        bpy.ops.wm.stl_export(filepath=filepath, check_existing=True)
+        print(f"[EXPORT] Exported Boombox -> {filepath}")
+
+        # === Export Solid surface ===
+        bpy.ops.object.select_all(action='DESELECT')
+        for obj in bpy.data.objects:
+            obj.hide_set(True)
+        bpy.data.objects['SolidSurface'].hide_set(False)
+
+        pattern = os.path.join(base_path, f"Boombox_2_Batch_{{}}{ext}")
+        batch = get_next_batch_number(pattern)
+        filepath = pattern.format(batch)
+
+        bpy.ops.wm.stl_export(filepath=filepath, check_existing=True)
+        print(f"[EXPORT] Exported Solid surface -> {filepath}")
+
+        # === Restore visibility ===
+        for obj in bpy.data.objects:
+            obj.hide_set(False)
+        
     elif model_choice == "none":
         pattern = os.path.join(base_path, f"Spectrogram_Batch_{{}}{ext}")
         batch = get_next_batch_number(pattern)
