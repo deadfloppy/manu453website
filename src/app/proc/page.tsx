@@ -64,7 +64,7 @@ export default function LinkProcessor({searchParams,}: {searchParams: Promise<{y
       const res = await fetch('/api/generate-stl', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ yt: yturl, startSeconds: start, duration: 15 })
+        body: JSON.stringify({ yt: yturl, startSeconds: start, duration: 15, mode: "boombox" })
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();

@@ -28,7 +28,9 @@ export async function POST(req: NextRequest) {
   //const STORAGE_PATH="/mnt/volume-nov/"
 
   try {
-    const { yt, startSeconds, duration } = await req.json();
+    const { yt, startSeconds, duration, mode } = await req.json();
+
+    console.log(mode)
 
     if (!yt || startSeconds == null || !duration) {
       return NextResponse.json({ error: "Missing params" }, { status: 400 });
@@ -71,7 +73,7 @@ export async function POST(req: NextRequest) {
     // Run Python script: assume it takes input wav, outputs STL+USDZ to tmpDir
     await new Promise<void>((resolve, reject) => {
       //const proc = spawn("python3", ["scripts/generate_model.py", jobId]);
-      const proc = spawn("python3", ["./src/app/api/generate-stl/backend.py", jobId]);
+      const proc = spawn("python3", ["./src/app/api/generate-stl/backend.py", jobId, mode]);
 
       proc.stdout.on("data", d => console.log("[python]", d.toString()));
       proc.stderr.on("data", d => console.error("[python-err]", d.toString()));
@@ -97,7 +99,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      vizPath: `/models/${jobId}.stl/`
+      vizPath: `/models/${jobId}.stl`
     });
   } catch (e) {
     console.error(e);
