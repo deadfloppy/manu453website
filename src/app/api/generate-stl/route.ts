@@ -79,22 +79,58 @@ export async function POST(req: NextRequest) {
 
     });
 
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Move STL + USDZ into /public/models/{jobId}
+    const stlPath = path.join(tmpDir, `${jobId}.stl`);
+
+    console.log("Checking for STL at:", stlPath);
+    console.log("STL exists?", fs.existsSync(stlPath));
+
+    if (!fs.existsSync(stlPath)) {
+      console.error("STL file not found, checking directory contents:");
+      console.log(fs.readdirSync(tmpDir));
+      throw new Error("STL file not created");
+    }
+
+    // Convert STL to GLB and USDZ
+    
+    await new Promise<void>((resolve, reject) => {
+      const pythonCommand = process.platform === "win32" ? "python" : "python3";
+      const convertScript = path.join(process.cwd(), "stl_converter.py");
+      const proc = spawn(pythonCommand, [convertScript, stlPath]);
+
+      proc.stdout.on("data", d => console.log("[convert]", d.toString()));
+      proc.stderr.on("data", d => console.error("[convert-err]", d.toString()));
+
+      proc.on("close", code => {
+        if (code !== 0) {
+          console.warn("Conversion failed, continuing with STL only");
+        }
+        resolve(); // Don't reject - STL viewer still works
+      });
+    });
+
+    // Move STL, GLB, and USDZ into /public/models/
     const publicDir = path.join(process.cwd(), "public", "models");
     fs.mkdirSync(publicDir, { recursive: true });
 
     for (const file of fs.readdirSync(tmpDir)) {
-      if (file.endsWith(".stl") || file.endsWith(".usdz")) {
+      if (file.endsWith(".stl") || file.endsWith(".usdz") || file.endsWith(".glb")) {
         fs.renameSync(path.join(tmpDir, file), path.join(publicDir, file));
-        console.log("moved!!!!!")
+        console.log(`Moved: ${file}`);
       }
     }
 
+    // Clean up temp directory
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
     return NextResponse.json({
       success: true,
-      vizPath: `/models/${jobId}.stl/`
+      vizPath: `/models/${jobId}.stl`,
+      glbPath: `/models/${jobId}.glb`,
+      usdzPath: `/models/${jobId}.usdz`
     });
+
   } catch (e: any) {
     console.error(e);
     return NextResponse.json({ error: e.message || "Processing failed" }, { status: 500 });

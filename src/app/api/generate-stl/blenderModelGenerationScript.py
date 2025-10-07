@@ -380,5 +380,5 @@ while True:
 
 # Export STL with unique name
 # bpy.ops.wm.stl_export(filepath=filepath, check_existing=True)
-output_path = os.path.join(os.getcwd(), "public", "models", f"{jobId}.stl")
+output_path = os.path.join(os.getcwd(), "tmp", jobId, f"{jobId}.stl")
 bpy.ops.wm.stl_export(filepath=output_path, check_existing=True)
