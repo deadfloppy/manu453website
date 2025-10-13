@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,28 @@ export default function SpectogramVisualizer({searchParams,}: {searchParams: Pro
 
     const [yturl, setYTURL] = useState<string>("");
     const filepath = use(searchParams).pt;
+    const [isIOS, setIsIOS] = useState(false);
+
+    useEffect(() => {
+    // Detect iOS devices
+    //const iOS = /Mac/iPad|iPhone|iPod/i.test(navigator.userAgent);
+    const iOS = true
+	setIsIOS(iOS);
+  }, []);
+
+    const handleARView = () => {
+    if (isIOS) {
+      // iOS: Use USDZ for AR Quick Look
+      const usdzPath = filepath.replace('.stl', '.usdz');
+      window.location.href = usdzPath;
+    } else {
+      // Android: Use GLB for Scene Viewer
+      const glbPath = filepath.replace('.stl', '.glb');
+      const fullUrl = `${window.location.origin}${glbPath}`;
+      const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(fullUrl)}&mode=ar_only#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end;`;
+      window.location.href = sceneViewerUrl;
+    }
+  };
 
 
   return (
@@ -29,14 +51,27 @@ export default function SpectogramVisualizer({searchParams,}: {searchParams: Pro
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.5 }}
           >
-        <p className="text-center font-bold mv-6 text-gray-300">Viz page</p>
 
-        <STLViewer url={`${filepath}`}></STLViewer>
+	 <p className="text-center font-bold mv-6 text-gray-300">3D Visualization</p>
+
+          <STLViewer url={filepath} />
+          
+          {filepath && (
+            <Button 
+              onClick={handleARView}
+              className="w-full bg-white text-black hover:bg-gray-200 mt-6"
+            >
+              View in AR {isIOS ? '(iOS)' : '(Android)'}
+            </Button>
+          )}
         
-        <Button asChild
-            className="w-full bg-white text-black hover:bg-gray-200 mt-6">
-              <Link href="intent://arvr.google.com/scene-viewer/1.0?file=https://github.com/deadfloppy/manu453website/raw/refs/heads/main/3DBenchy.glb&mode=ar_only#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end;">View in AR</Link>
-          </Button>
+	<Button asChild
+            className="w-full bg-white text-black hover:bg-gray-200 mt-2">
+          <a href={`${filepath}`} download>
+            Download STL
+          </a>
+        </Button>
+
         </motion.div>
    </div>
    

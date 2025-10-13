@@ -36,7 +36,7 @@ def generateCSV():
     B = spectro.band_labeling(M)
 
     spectro.save_to_csv(T, M, B, output_file = jobId)
-    #spectro.plot_surface(T, M, "Bins = 441")
+    spectro.plot_surface(T, M, "Bins = 441")
 
 print("Step 1/2: Generating CSV from audio...")
 generateCSV()
@@ -46,6 +46,10 @@ if getcwd().startswith("/Users/deadfloppy/Projects/AdditiveWebsite/main-docker")
     system(f"/Applications/Blender.app/Contents/MacOS/Blender --background -P ./src/app/api/generate-stl/blenderModelGenerationScript.py -- {jobId} {mode}")
 else:
     system(f"blender --background -P ./src/app/api/generate-stl/blenderModelGenerationScript.py -- {jobId} {mode}")
+
+print(getcwd())
+system(f"python3 src/app/api/generate-stl/stl_converter.py /models/{jobId}.stl")
+
 print("Done.")
 
 

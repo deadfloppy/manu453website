@@ -64,14 +64,17 @@ export default function LinkProcessor({searchParams,}: {searchParams: Promise<{y
       const res = await fetch('/api/generate-stl', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ yt: yturl, startSeconds: start, duration: 15, mode: "boombox" })
+        body: JSON.stringify({ yt: yturl, startSeconds: start, duration: 15, mode: "none" })
       });
+      console.log("POST request done")
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       // expected response { success: true, vizPath: string }
       // redirect to /viz with same yt param and start time
-      router.push(`/viz?pt=${encodeURIComponent(data.vizPath)}`);
-    } catch (e) {
+      console.log("pushing to viz")
+	router.push(`/viz?pt=${encodeURIComponent(data.vizPath)}`);
+    } 
+	catch (e) {
       console.error(e);
       setError((e as Error).message || String(e));
     } finally {

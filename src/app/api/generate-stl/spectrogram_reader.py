@@ -34,12 +34,14 @@ class mel_spectrogram:
 
         self.jobId = jobId
         # Check whether Users directory exists
-        if not os.path.exists(f"/mnt/volume-nov/"):
+        if not os.path.exists(f"/mnt/volume_nov/"):
+            print("Running on Macx")
             self.file_name = f"/Users/deadfloppy/Projects/AdditiveWebsite/main-docker/tmp/{self.jobId}/{self.jobId}.wav"
             self.path = f"/Users/deadfloppy/Projects/AdditiveWebsite/main-docker/tmp/{self.jobId}/"
         else:
-            self.file_name = f"/mnt/volume-nov/tmp/{self.jobId}/{self.jobId}.wav"
-            self.path = f"/mnt/volume-nov/tmp/{self.jobId}/"
+            print("Running on Linux")
+            self.file_name = f"/mnt/volume_nov/with-docker/tmp/{self.jobId}/{self.jobId}.wav"
+            self.path = f"/mnt/volume_nov/with-docker/tmp/{self.jobId}/"
         self.n_fft = n_fft
         self.hop_length = hop_length
         self.n_mels = n_mels

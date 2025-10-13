@@ -47,16 +47,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Video not found" }, { status: 404 });
     }
 
-    const item = data.items[0];
-    const title = item.snippet?.title || "";
-    const durationISO = item.contentDetails?.duration || "";
+    const durationISO = data.items[0].contentDetails?.duration || "";
 
     // Convert ISO 8601 duration (e.g. PT4M13S) → seconds
     const match = durationISO.match(/PT(?:(\d+)M)?(?:(\d+)S)?/);
     const minutes = match?.[1] ? parseInt(match[1]) : 0;
     const seconds = match?.[2] ? parseInt(match[2]) : 0;
-    const durationSeconds = minutes * 60 + seconds;
-
+    const durationSeconds = minutes * 60 + seconds + 30;
+    const title = data.items[0]?.title || "Untilted";
     return NextResponse.json({ title, durationSeconds });
   } catch (e) {
     console.error(e);
