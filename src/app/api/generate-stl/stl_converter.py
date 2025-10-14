@@ -8,9 +8,29 @@ import sys
 import os
 import platform
 from pathlib import Path
+from time import sleep
 
 jobid = sys.argv[1]
-stl_path = f"/mnt/volume_nov/with-docker/public{jobid}"
+mode = sys.argv[2] if len(sys.argv) > 2 else "none"
+if platform.system() == "Darwin":
+    # MacOS
+    stl_path = f"/Users/deadfloppy/Projects/AdditiveWebsite/with-docker/public/models/{jobid}.stl"
+    #stl_path = f"public/models/{jobid}.stl"
+else:
+    # Linux
+    stl_path = f"/mnt/volume_nov/with-docker/public/models/{jobid}.stl"
+
+print("CWD:", os.getcwd())
+
+if mode == "boombox":
+    print("Running stl_joiner")
+    if os.getcwd().startswith("/Users/deadfloppy/Projects/AdditiveWebsite/with-docker"):
+        # MacOS
+        os.system(f"/Applications/Blender.app/Contents/MacOS/Blender --background -P ./src/app/api/generate-stl/stl_joiner.py -- {jobid}")
+    else:
+        os.system(f"blender --background -P ./src/app/api/generate-stl/stl_joiner.py-- {jobid}")
+
+
 print(f"path: {stl_path}")
 def convert_stl_to_glb(stl_path, glb_path):
     """Convert STL to GLB format"""
@@ -103,7 +123,7 @@ def main():
         print("Example: python convert_models.py /path/to/model.stl")
         sys.exit(1)
     
-    stl_path = sys.argv[1]
+    #stl_path = sys.argv[1]
     
     # Validate input file
     if not os.path.exists(stl_path):
@@ -161,3 +181,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

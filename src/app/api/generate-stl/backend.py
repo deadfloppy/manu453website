@@ -2,6 +2,7 @@ from datetime import date
 import spectrogram_reader as sr
 from sys import argv
 from os import system, getcwd, path
+from time import sleep
 
 jobId = argv[1]
 mode = argv[2] if len(argv) > 2 else "none"
@@ -36,19 +37,29 @@ def generateCSV():
     B = spectro.band_labeling(M)
 
     spectro.save_to_csv(T, M, B, output_file = jobId)
-    spectro.plot_surface(T, M, "Bins = 441")
+    #spectro.plot_surface(T, M, "Bins = 441")
 
 print("Step 1/2: Generating CSV from audio...")
 generateCSV()
 print("Step 2/2: Generating STL from CSV...")
-if getcwd().startswith("/Users/deadfloppy/Projects/AdditiveWebsite/main-docker"):
+if getcwd().startswith("/Users/deadfloppy/Projects/AdditiveWebsite/with-docker"):
     # MacOS
     system(f"/Applications/Blender.app/Contents/MacOS/Blender --background -P ./src/app/api/generate-stl/blenderModelGenerationScript.py -- {jobId} {mode}")
 else:
     system(f"blender --background -P ./src/app/api/generate-stl/blenderModelGenerationScript.py -- {jobId} {mode}")
 
-print(getcwd())
-system(f"python3 src/app/api/generate-stl/stl_converter.py /models/{jobId}.stl")
+# print("[Backend] Waiting for STL to be ready...")
+# stl_file = f"/Users/deadfloppy/Projects/AdditiveWebsite/with-docker/public/models/{jobId}.stl"
+# for i in range(50):  # wait up to 30s
+#     if path.exists(stl_file):
+#         print(f"[Backend] STL ready after {i} s")
+#         break
+#     sleep(1)
+# else:
+#     print(f"[Backend] Timeout: STL not found after 30s")
+
+# system(f"python3 src/app/api/generate-stl/stl_converter.py {jobId}")
+
 
 print("Done.")
 

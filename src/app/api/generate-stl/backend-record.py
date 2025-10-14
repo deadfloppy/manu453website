@@ -42,7 +42,7 @@ def generateCSV():
 print("Step 1/2: Generating CSV from audio...")
 generateCSV()
 print("Step 2/2: Generating STL from CSV...")
-if getcwd().startswith("/Users/deadfloppy/Projects/AdditiveWebsite/main-docker"):
+if getcwd().startswith("/Users/deadfloppy/Projects/AdditiveWebsite/with-docker"):
     # MacOS
     system(f"/Applications/Blender.app/Contents/MacOS/Blender --background -P ./src/app/api/generate-stl/blenderModelGenerationScript.py -- {jobId} {mode}")
 else:

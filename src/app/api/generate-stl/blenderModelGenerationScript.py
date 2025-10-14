@@ -14,11 +14,30 @@ jobId = sys.argv[5]
 mode = sys.argv[6] if len(sys.argv) > 6 else "none"
 
 # Check if on Linux, then enable STL addon
-bpy.ops.preferences.addon_enable(module='io_mesh_stl')
+if os.path.exists(f"/mnt/volume_nov"):
+    bpy.ops.preferences.addon_enable(module='io_mesh_stl')
+
+def exportMesh(filepath):
+    # if mac then blender v<4.2 and new implementation is used 
+    if not os.path.exists(f"/mnt/volume_nov"):
+        bpy.ops.wm.stl_export(filepath=filepath)
+    else:
+        bpy.ops.export_mesh.stl(filepath=filepath, check_existing=True)
+
+def importMesh(filepath):
+    if not os.path.exists(f"/mnt/volume_nov"):
+        bpy.ops.wm.stl_import(filepath=filepath)
+    else:
+        bpy.ops.import_mesh.stl(filepath=filepath)
+
+        
+
+        
+
 
 # === SETTINGS ===
 if not os.path.exists(f"/mnt/volume_nov"):
-    csv_file = os.path.join("/Users/deadfloppy/Projects/AdditiveWebsite/main-docker/tmp", jobId, f"{jobId}.csv")
+    csv_file = os.path.join("/Users/deadfloppy/Projects/AdditiveWebsite/with-docker/tmp", jobId, f"{jobId}.csv")
 else:
     csv_file = f"/mnt/volume_nov/with-docker/tmp/{jobId}/{jobId}.csv"  
 print(csv_file)
@@ -60,14 +79,14 @@ circle_name = "DonutPath"
 
 # Get paths
 if not os.path.exists(f"/mnt/volume_nov"):
-    modelpath = "/Users/deadfloppy/Projects/AdditiveWebsite/main-docker/public"
+    modelpath = "/Users/deadfloppy/Projects/AdditiveWebsite/with-docker/public"
 else:
     modelpath = "/mnt/volume_nov/with-docker/public"
 
 # --- Model choice ---
 model_choice = mode  # "record", "boombox", "none"
-record_player_path = f"{modelpath}/Record_player_model_no_spectrogram.stl"
-boombox_path       = f"{modelpath}/Boombox_model_no_spectrogramver2.stl"
+record_player_path = f"{modelpath}/empty-record.stl"
+boombox_path       = f"{modelpath}/empty-boombox.stl"
 
 # --- FUNCTIONS ---
 def detect_num_cols(csv_file, delimiter, skip_header):
@@ -98,7 +117,7 @@ print("Detected num_cols:", num_cols)
 
 
 def import_stl(filepath, object_name):
-    bpy.ops.export_mesh.stl(filepath=filepath)
+    importMesh(filepath)
     obj = bpy.context.selected_objects[0]
     obj.name = object_name
     obj.location = (0.0, 0.0, 0.0)
@@ -655,7 +674,7 @@ if not SHOW_BANDS and single_surface_obj:
     
     # --- SETTINGS ---
 if not os.path.exists(f"/mnt/volume_nov"):
-    base_path = os.path.join("/Users/deadfloppy/Projects/AdditiveWebsite/main-docker", "tmp", jobId)
+    base_path = os.path.join("/Users/deadfloppy/Projects/AdditiveWebsite/with-docker", "tmp", jobId)
 else:
     base_path = "/mnt/volume_nov/with-docker/tmp/" + jobId
 ext = ".stl"
@@ -671,6 +690,7 @@ def get_next_batch_number(pattern):
         if not os.path.exists(filepath):
             return batch
         batch += 1
+
 
 # --- EXPORT STL ---
 if SHOW_BANDS:
@@ -694,7 +714,7 @@ if SHOW_BANDS:
         filepath = pattern.format(batch)
 
         # Export currently visible mesh
-        bpy.ops.export_mesh.stl(filepath=filepath, check_existing=True)
+        exportMesh(filepath)
         print(f"[EXPORT] Exported {name} as {os.path.basename(filepath)}")
 
     # Restore visibility after exporting all meshes
@@ -703,13 +723,13 @@ if SHOW_BANDS:
 
 elif not SHOW_BANDS:
     if model_choice == "record":
-        pattern = os.path.join(base_path, f"{jobId}{ext}")
+        pattern = os.path.join(base_path, f"Record_Batch_{{}}{ext}")
         batch = get_next_batch_number(pattern)
         filepath = pattern.format(batch)
         # Join all meshes first if not already joined
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.object.join()
-        bpy.ops.export_mesh.stl(filepath=filepath, check_existing=True)
+        exportMesh(filepath=filepath)
 
     elif model_choice == "boombox":
         # === Export Boombox ===
@@ -718,11 +738,11 @@ elif not SHOW_BANDS:
             obj.hide_set(True)
         bpy.data.objects['Boombox'].hide_set(False)
 
-        pattern = os.path.join(base_path, f"{jobId}{ext}")
+        pattern = os.path.join(base_path, f"{jobId}-1{ext}")
         batch = get_next_batch_number(pattern)
         filepath = pattern.format(batch)
 
-        bpy.ops.export_mesh.stl(filepath=filepath, check_existing=True)
+        exportMesh(filepath=filepath)
         print(f"[EXPORT] Exported Boombox -> {filepath}")
 
         # === Export Solid surface ===
@@ -731,11 +751,11 @@ elif not SHOW_BANDS:
             obj.hide_set(True)
         bpy.data.objects['SolidSurface'].hide_set(False)
 
-        pattern = os.path.join(base_path, f"{jobId}{ext}")
+        pattern = os.path.join(base_path, f"{jobId}-2{ext}")
         batch = get_next_batch_number(pattern)
         filepath = pattern.format(batch)
 
-        bpy.ops.export_mesh.stl(filepath=filepath, check_existing=True)
+        exportMesh(filepath=filepath)
         print(f"[EXPORT] Exported Solid surface -> {filepath}")
 
         # === Restore visibility ===
@@ -743,7 +763,7 @@ elif not SHOW_BANDS:
             obj.hide_set(False)
         
     elif model_choice == "none":
-        pattern = os.path.join(base_path, f"{jobId}{ext}")
+        pattern = os.path.join(base_path, f"Spectrogram_Batch_{{}}{ext}")
         batch = get_next_batch_number(pattern)
         filepath = pattern.format(batch)
-        bpy.ops.export_mesh.stl(filepath=filepath, check_existing=True)
+        exportMesh(filepath=filepath)

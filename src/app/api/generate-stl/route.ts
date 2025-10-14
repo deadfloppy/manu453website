@@ -73,10 +73,10 @@ export async function POST(req: NextRequest) {
     // Run Python script: assume it takes input wav, outputs STL+USDZ to tmpDir
     await new Promise<void>((resolve, reject) => {
       //const proc = spawn("python3", ["scripts/generate_model.py", jobId]);
-      const proc = spawn("python3", ["./src/app/api/generate-stl/backend.py", jobId, mode]);
+      const proc = spawn("python3", ["-u", "./src/app/api/generate-stl/backend.py", jobId, mode]);
 
-      proc.stdout.on("data", d => console.log("[python]", d.toString()));
-      proc.stderr.on("data", d => console.error("[python-err]", d.toString()));
+      proc.stdout.on("data", d => console.log("[backend]", d.toString()));
+      proc.stderr.on("data", d => console.error("[backend-err]", d.toString()));
 
       proc.on("close", code => {
         if (code !== 0) return reject(new Error("Python script failed"));
@@ -96,6 +96,50 @@ export async function POST(req: NextRequest) {
         console.log("moved!!!!!")
       }
     }
+
+    
+    // if in boombox mode, run joining script
+    // if (mode === "boombox") {
+    //   await new Promise<void>((resolve, reject) => {
+    //     console.log("[API] Joining STLs...")
+    //     const proc = spawn("python3", ["./src/app/api/generate-stl/stl_joiner.py", jobId]);
+    //     proc.stdout.on("data", d => console.log("[joiner]", d.toString()));
+    //     proc.stderr.on("data", d => console.error("[joiner-err]", d.toString()));
+
+    //     const obj1 = path.join("./public/models/", `${jobId}-1.stl` )
+    //     const obj2 = path.join("./public/models/", `${jobId}-2.stl`)
+    //     fs.rm(obj1, { force: true }, (err) => {
+    //       if (err) console.error(`Failed to remove ${obj1}:`, err);
+    //     });
+    //     fs.rm(obj2, { force: true }, (err) => {
+    //       if (err) console.error(`Failed to remove ${obj2}:`, err);
+    //     })
+    //     proc.on("close", code => {
+    //       if (code !== 0) return reject(new Error("Joiner script failed"));
+    //       resolve();
+    //     });
+    //   })
+    // }
+    
+    // convert stl for AR
+    await new Promise<void>((resolve, reject) => {
+      const proc = spawn("python3", ["./src/app/api/generate-stl/stl_converter.py", jobId, mode]);
+      proc.stdout.on("data", d => console.log("[converter]", d.toString()));
+      proc.stdout.on("data", d => console.error("[converter-err]", d.toString()));
+      proc.on("close", code => {
+        if (code !== 0) return reject(new Error("Converter script failed"));
+        resolve();
+      });
+    })
+
+    const obj1 = path.join("./public/models/", `${jobId}-1.stl` )
+      const obj2 = path.join("./public/models/", `${jobId}-2.stl`)
+      fs.rm(obj1, { force: true }, (err) => {
+        if (err) console.error(`Failed to remove ${obj1}:`, err);
+      });
+      fs.rm(obj2, { force: true }, (err) => {
+        if (err) console.error(`Failed to remove ${obj2}:`, err);
+      })
 
     return NextResponse.json({
       success: true,
