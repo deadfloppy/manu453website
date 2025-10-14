@@ -723,7 +723,7 @@ if SHOW_BANDS:
 
 elif not SHOW_BANDS:
     if model_choice == "record":
-        pattern = os.path.join(base_path, f"Record_Batch_{{}}{ext}")
+        pattern = os.path.join(base_path, f"{jobId}{ext}")
         batch = get_next_batch_number(pattern)
         filepath = pattern.format(batch)
         # Join all meshes first if not already joined
@@ -763,7 +763,7 @@ elif not SHOW_BANDS:
             obj.hide_set(False)
         
     elif model_choice == "none":
-        pattern = os.path.join(base_path, f"Spectrogram_Batch_{{}}{ext}")
+        pattern = os.path.join(base_path, f"{jobId}{ext}")
         batch = get_next_batch_number(pattern)
         filepath = pattern.format(batch)
         exportMesh(filepath=filepath)

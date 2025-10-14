@@ -28,7 +28,7 @@ if mode == "boombox":
         # MacOS
         os.system(f"/Applications/Blender.app/Contents/MacOS/Blender --background -P ./src/app/api/generate-stl/stl_joiner.py -- {jobid}")
     else:
-        os.system(f"blender --background -P ./src/app/api/generate-stl/stl_joiner.py-- {jobid}")
+        os.system(f"blender --background -P ./src/app/api/generate-stl/stl_joiner.py -- {jobid}")
 
 
 print(f"path: {stl_path}")
